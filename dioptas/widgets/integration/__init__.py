@@ -105,6 +105,7 @@ class IntegrationWidget(QtWidgets.QWidget):
         self.img_batch_mode_integrate_rb = self.integration_control_widget.img_control_widget.batch_mode_integrate_rb
         self.img_batch_mode_add_rb = self.integration_control_widget.img_control_widget.batch_mode_add_rb
         self.img_batch_mode_image_save_rb = self.integration_control_widget.img_control_widget.batch_mode_image_save_rb
+        self.img_batch_mode_series_btn = self.integration_control_widget.img_control_widget.batch_mode_series_btn
 
         pattern_file_widget = self.integration_control_widget.pattern_control_widget.file_widget
         self.pattern_load_btn = pattern_file_widget.load_btn

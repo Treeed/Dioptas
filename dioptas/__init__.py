@@ -95,7 +95,9 @@ def excepthook(exc_type, exc_value, traceback_obj):
 
 def main():
     app = QtWidgets.QApplication([])
-    sys.excepthook = excepthook
+    #sys.excepthook = excepthook
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
     from sys import platform as _platform
     from .controller.MainController import MainController
     print("Dioptas {}".format(__version__))

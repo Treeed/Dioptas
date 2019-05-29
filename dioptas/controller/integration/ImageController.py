@@ -158,6 +158,8 @@ class ImageController(object):
         self.connect_click_function(self.widget.img_step_file.browse_by_time_rb, self.set_iteration_mode_time)
         self.connect_click_function(self.widget.mask_transparent_cb, self.update_mask_transparency)
 
+        self.connect_click_function(self.widget.img_batch_mode_series_btn, self._batch_integrate_series)
+
         self.connect_click_function(self.widget.img_roi_btn, self.click_roi_btn)
         self.connect_click_function(self.widget.img_mask_btn, self.change_mask_mode)
         self.connect_click_function(self.widget.img_mode_btn, self.change_view_mode)
@@ -208,17 +210,70 @@ class ImageController(object):
             if len(filenames) == 1:
                 self.model.img_model.load(str(filenames[0]))
             else:
-                if self.widget.img_batch_mode_add_rb.isChecked():
-                    self.model.img_model.blockSignals(True)
-                    self.model.img_model.load(str(filenames[0]))
-                    for ind in range(1, len(filenames)):
-                        self.model.img_model.add(filenames[ind])
-                    self.model.img_model.blockSignals(False)
-                    self.model.img_model.img_changed.emit()
-                elif self.widget.img_batch_mode_integrate_rb.isChecked():
-                    self._load_multiple_files(filenames)
-                elif self.widget.img_batch_mode_image_save_rb.isChecked():
-                    self._save_multiple_image_files(filenames)
+                self.batch_process(filenames)
+
+    def batch_process(self, iterator = None):
+        self._set_up_batch_processing()
+        if self.widget.img_batch_mode_add_rb.isChecked():
+            self._batch_add(iterator)
+        elif self.widget.img_batch_mode_integrate_rb.isChecked():
+            self._load_multiple_files(iterator)
+        elif self.widget.img_batch_mode_image_save_rb.isChecked():
+            self._save_multiple_image_files(iterator)
+
+    def _batch_add(self, filenames):
+        self.model.img_model.blockSignals(True)
+        self.model.img_model.load(str(filenames[0]))
+        for ind in range(1, len(filenames)):
+            self.model.img_model.add(filenames[ind])
+        self.model.img_model.blockSignals(False)
+        self.model.img_model.img_changed.emit()
+
+    def _batch_integrate_series(self):
+        if not self.model.calibration_model.is_calibrated:
+            self.widget.show_error_msg("Can not integrate multiple images without calibration.")
+            return
+
+        working_directory = self._get_pattern_working_directory()
+        if working_directory is '':
+            return  # abort file processing if no directory was selected
+
+        if self.model.img_model.series_max < 2:
+            return
+
+        progress_dialog = self.widget.get_progress_dialog("Integrating multiple images.", "Abort Integration", self.model.img_model.series_max)
+        self._set_up_batch_processing()
+        basename = os.path.splitext(os.path.basename(self.model.img_model.filename))[0]
+        for ind in range(1, self.model.img_model.series_max+1):
+
+            import time
+            import logging
+            tt = logging.getLogger()
+            t1 = time.time()
+            progress_dialog.setValue(ind)
+            progress_dialog.setLabelText("Integrating image: " + str(ind))
+
+            t2 = time.time()
+            self.model.img_model.blockSignals(True)
+            self.model.img_model.load_series_img(ind)
+            self.model.img_model.blockSignals(False) # why do we need that?
+            tt.info("load took {}s".format(time.time()-t2))
+
+            t2 = time.time()
+            x, y = self.integrate_pattern()
+            tt.info("int took {}s".format(time.time()-t2))
+            t2 = time.time()
+            self._save_pattern(basename+"_"+str(ind), working_directory, x, y)
+            tt.info("save took {}s".format(time.time()-t2))
+
+            t2 = time.time()
+            QtWidgets.QApplication.processEvents()
+            tt.info("process took {}s".format(time.time()-t2))
+            if progress_dialog.wasCanceled():
+                break
+            tt.info("cycle took {}s".format(time.time()-t1))
+        progress_dialog.close()
+        self._tear_down_batch_processing()
 
     def _load_multiple_files(self, filenames):
         if not self.model.calibration_model.is_calibrated:
@@ -280,7 +335,6 @@ class ImageController(object):
         if working_directory is '':
             return
 
-        self._set_up_batch_processing()
         progress_dialog = self.widget.get_progress_dialog("Saving multiple image files.", "Abort",
                                                           len(filenames))
         QtWidgets.QApplication.processEvents()
@@ -463,6 +517,7 @@ class ImageController(object):
 
     def update_img(self, reset_img_levels=None):
         self.widget.img_step_series.setVisible(self.model.img_model.series_max > 1)
+        self.widget.img_batch_mode_series_btn.setVisible(self.model.img_model.series_max > 1)
         self.widget.img_step_series.pos_validator.setTop(self.model.img_model.series_max)
         self.widget.img_step_series.pos_txt.setText(str(self.model.img_model.series_pos))
 

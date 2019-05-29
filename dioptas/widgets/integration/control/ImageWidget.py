@@ -43,6 +43,7 @@ class ImageWidget(QtWidgets.QWidget):
         self.batch_mode_integrate_rb = QtWidgets.QRadioButton("integrate")
         self.batch_mode_add_rb = QtWidgets.QRadioButton("add")
         self.batch_mode_image_save_rb = QtWidgets.QRadioButton("image save")
+        self.batch_mode_series_btn = QtWidgets.QPushButton("process series")
 
     def _create_layout(self):
         self._layout = QtWidgets.QVBoxLayout()
@@ -56,6 +57,7 @@ class ImageWidget(QtWidgets.QWidget):
         self._batch_layout.addWidget(self.batch_mode_integrate_rb)
         self._batch_layout.addWidget(self.batch_mode_add_rb)
         self._batch_layout.addWidget(self.batch_mode_image_save_rb)
+        self._batch_layout.addWidget(self.batch_mode_series_btn)
         self._batch_layout.addItem(HorizontalSpacerItem())
         self.batch_mode_widget.setLayout(self._batch_layout)
         self._layout.addWidget(self.batch_mode_widget)
@@ -75,3 +77,4 @@ class ImageWidget(QtWidgets.QWidget):
     def _style_widgets(self):
         self._batch_layout.setContentsMargins(0, 0, 0, 0)
         self.batch_mode_integrate_rb.setChecked(True)
+        self.batch_mode_series_btn.setVisible(False)
