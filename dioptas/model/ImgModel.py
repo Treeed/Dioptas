@@ -90,10 +90,10 @@ class ImgModel(QtCore.QObject):
                               {"name": "file_info", "default": "", "attribute": "file_info"},
                               {"name": "motors_info", "default": {}, "attribute": "motors_info"},
                               {"name": "img_data_fabio", "default": None, "attribute": "_img_data_fabio"},
-                              # current position in the loaded series of images, starting at 1
-                              {"name": "series_pos", "default": 1, "attribute": "series_pos"},
-                              # maximum position/number of images in the loaded series, starting at 1
-                              {"name": "series_max", "default": 1, "attribute": "series_max"},
+                              # current position in the loaded series of images, starting at 0
+                              {"name": "series_pos", "default": 0, "attribute": "series_pos"},
+                              # number of images in the loaded series
+                              {"name": "series_len", "default": 1, "attribute": "series_len"},
                               # function to get an image in the current series. A function assigned to this attribute should take
                               # a single parameter pos (position in the series starting at 0) and return a 2d array with the image data
                               {"name": "series_get_image", "default": None, "attribute": "series_get_image"}]
@@ -215,7 +215,7 @@ class ImgModel(QtCore.QObject):
         """
         loads an image made by a lambda detector using the builtin lambda library.
         :param filename: path to the image file to be loaded
-        :return: dictionary with img_data, series_max and series_get_image, None if unsuccessful
+        :return: dictionary with img_data, series_len and series_get_image, None if unsuccessful
         """
         try:
             lambda_im = LambdaImage(filename)
@@ -223,7 +223,7 @@ class ImgModel(QtCore.QObject):
             return None
 
         return {"img_data": lambda_im.get_image(0),
-                "series_max": lambda_im.series_max,
+                "series_len": lambda_im.series_len,
                 "series_get_image": lambda_im.get_image}
 
     def save(self, filename):
@@ -348,15 +348,14 @@ class ImgModel(QtCore.QObject):
     def load_series_img(self, pos):
         """
         Takes a position in  the series to load, sanitizes it and puts the result from the function assigned to series_get_image into _img_data.
-        series_get_image gets called with a position starting from 0, all other series pos values start at one as shown to the user.
-        :param pos: Image position in the series to load, starting at 1
+        :param pos: Image position in the series to load, starting at 0
         """
-        pos = min(max(pos, 1), self.series_max)
+        pos = min(max(pos, 0), self.series_len-1)
         if self.series_pos == pos:
             return
 
         self.series_pos = pos
-        self._img_data = self.series_get_image(pos - 1)
+        self._img_data = self.series_get_image(pos)
 
         self._perform_img_transformations()
         self._calculate_img_data()
@@ -478,6 +477,8 @@ class ImgModel(QtCore.QObject):
         """
         if self.supersampling_factor == 1:
             if self._background_data is None and not self._img_corrections.has_items():
+                if self.factor == 1:
+                    return self._img_data
                 return self._img_data * self.factor
 
             elif self._background_data is not None and not self._img_corrections.has_items():

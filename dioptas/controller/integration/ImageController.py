@@ -212,7 +212,7 @@ class ImageController(object):
             else:
                 self.batch_process(filenames)
 
-    def batch_process(self, iterator = None):
+    def batch_process(self, iterator=None):
         self._set_up_batch_processing()
         if self.widget.img_batch_mode_add_rb.isChecked():
             self._batch_add(iterator)
@@ -238,20 +238,20 @@ class ImageController(object):
         if working_directory is '':
             return  # abort file processing if no directory was selected
 
-        if self.model.img_model.series_max < 2:
+        if self.model.img_model.series_len < 2:
             return
 
-        progress_dialog = self.widget.get_progress_dialog("Integrating multiple images.", "Abort Integration", self.model.img_model.series_max)
+        progress_dialog = self.widget.get_progress_dialog("Integrating multiple images.", "Abort Integration", self.model.img_model.series_len)
         self._set_up_batch_processing()
         basename = os.path.splitext(os.path.basename(self.model.img_model.filename))[0]
-        for ind in range(1, self.model.img_model.series_max+1):
+        for ind in range(self.model.img_model.series_len):
 
             import time
             import logging
             tt = logging.getLogger()
             t1 = time.time()
             progress_dialog.setValue(ind)
-            progress_dialog.setLabelText("Integrating image: " + str(ind))
+            progress_dialog.setLabelText("Integrating image: " + str(ind+1))
 
             t2 = time.time()
             self.model.img_model.blockSignals(True)
@@ -263,7 +263,7 @@ class ImageController(object):
             x, y = self.integrate_pattern()
             tt.info("int took {}s".format(time.time()-t2))
             t2 = time.time()
-            self._save_pattern(basename+"_"+str(ind), working_directory, x, y)
+            self._save_pattern(basename+"_"+str(ind+1), working_directory, x, y)
             tt.info("save took {}s".format(time.time()-t2))
 
             t2 = time.time()
@@ -335,6 +335,7 @@ class ImageController(object):
         if working_directory is '':
             return
 
+        self._set_up_batch_processing()
         progress_dialog = self.widget.get_progress_dialog("Saving multiple image files.", "Abort",
                                                           len(filenames))
         QtWidgets.QApplication.processEvents()
@@ -460,17 +461,17 @@ class ImageController(object):
         self.widget.img_mode_btn.click()
 
     def load_series_img(self):
-        pos = int(str(self.widget.img_step_series.pos_txt.text()))
+        pos = int(str(self.widget.img_step_series.pos_txt.text()))-1
         self.model.img_model.load_series_img(pos)
 
     def load_prev_series_img(self):
         step = int(str(self.widget.img_step_series.step_txt.text()))
-        pos = int(str(self.widget.img_step_series.pos_txt.text()))
+        pos = int(str(self.widget.img_step_series.pos_txt.text()))-1
         self.model.img_model.load_series_img(pos-step)
 
     def load_next_series_img(self):
         step = int(str(self.widget.img_step_series.step_txt.text()))
-        pos = int(str(self.widget.img_step_series.pos_txt.text()))
+        pos = int(str(self.widget.img_step_series.pos_txt.text()))-1
         self.model.img_model.load_series_img(pos+step)
 
     def load_next_img(self):
@@ -516,10 +517,10 @@ class ImageController(object):
             self.widget.img_directory_txt.setText(directory)
 
     def update_img(self, reset_img_levels=None):
-        self.widget.img_step_series.setVisible(self.model.img_model.series_max > 1)
-        self.widget.img_batch_mode_series_btn.setVisible(self.model.img_model.series_max > 1)
-        self.widget.img_step_series.pos_validator.setTop(self.model.img_model.series_max)
-        self.widget.img_step_series.pos_txt.setText(str(self.model.img_model.series_pos))
+        self.widget.img_step_series.setVisible(self.model.img_model.series_len > 1)
+        self.widget.img_batch_mode_series_btn.setVisible(self.model.img_model.series_len > 1)
+        self.widget.img_step_series.pos_validator.setTop(self.model.img_model.series_len)
+        self.widget.img_step_series.pos_txt.setText(str(self.model.img_model.series_pos+1))
 
         self.widget.img_filename_txt.setText(os.path.basename(self.model.img_model.filename))
         self.widget.img_directory_txt.setText(os.path.dirname(self.model.img_model.filename))
