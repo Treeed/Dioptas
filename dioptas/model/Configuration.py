@@ -132,7 +132,7 @@ class Configuration(QtCore.QObject):
         if filename is None:
             filename = self.img_model.filename
 
-        if filename.endswith('.xy'):
+        if filename.endswith('.xy') or filename.endswith('.pyfai'):
             self.pattern_model.save_pattern(filename, header=self._create_xy_header(),
                                             subtract_background=subtract_background)
         elif filename.endswith('.fxye'):
@@ -149,7 +149,7 @@ class Configuration(QtCore.QObject):
         if filename is None:
             filename = self.img_model.filename
 
-        if filename.endswith('.xy'):
+        if filename.endswith('.xy') or filename.endswith('.pyfai'):
             self.pattern_model.save_background_as_pattern(filename, header=self._create_xy_header())
         elif filename.endswith('.fxye'):
             self.pattern_model.save_background_as_pattern(filename, header=self._create_fxye_header(filename))

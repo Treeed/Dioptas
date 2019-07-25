@@ -244,6 +244,7 @@ class ImageController(object):
         progress_dialog = self.widget.get_progress_dialog("Integrating multiple images.", "Abort Integration", self.model.img_model.series_len)
         self._set_up_batch_processing()
         basename = os.path.splitext(os.path.basename(self.model.img_model.filename))[0]
+        number_length = len(str(self.model.img_model.series_len))
         for ind in range(self.model.img_model.series_len):
 
             import time
@@ -257,21 +258,21 @@ class ImageController(object):
             self.model.img_model.blockSignals(True)
             self.model.img_model.load_series_img(ind)
             self.model.img_model.blockSignals(False) # why do we need that?
-            tt.info("load took {}s".format(time.time()-t2))
+            tt.debug("load took {}s".format(time.time()-t2))
 
             t2 = time.time()
             x, y = self.integrate_pattern()
-            tt.info("int took {}s".format(time.time()-t2))
+            tt.debug("int took {}s".format(time.time()-t2))
             t2 = time.time()
-            self._save_pattern(basename+"_"+str(ind+1), working_directory, x, y)
+            self._save_pattern(basename+"_{ind:0{width}}".format(ind=ind+1, width=number_length), working_directory, x, y)
             tt.info("save took {}s".format(time.time()-t2))
 
             t2 = time.time()
             QtWidgets.QApplication.processEvents()
-            tt.info("process took {}s".format(time.time()-t2))
+            tt.debug("process took {}s".format(time.time()-t2))
             if progress_dialog.wasCanceled():
                 break
-            tt.info("cycle took {}s".format(time.time()-t1))
+            tt.debug("cycle took {}s".format(time.time()-t1))
         progress_dialog.close()
         self._tear_down_batch_processing()
 
@@ -365,7 +366,7 @@ class ImageController(object):
         for file_ending in file_endings:
             filename = os.path.join(working_directory, os.path.splitext(base_filename)[0] + file_ending)
             self.model.pattern_model.set_pattern(x, y, filename, unit=self.get_integration_unit())
-            if file_ending == '.xy':
+            if file_ending == '.xy' or file_ending == '.pyfai':
                 self.model.pattern_model.save_pattern(filename, header=self._create_pattern_header())
             else:
                 self.model.pattern_model.save_pattern(filename)
@@ -376,7 +377,7 @@ class ImageController(object):
                 if not os.path.exists(directory):
                     os.mkdir(directory)
                 filename = os.path.join(directory, self.model.pattern.name + file_ending)
-                if file_ending == '.xy':
+                if file_ending == '.xy' or file_ending == '.pyfai':
                     self.model.pattern_model.save_pattern(filename, header=self._create_pattern_header(),
                                                           subtract_background=True)
                 else:
@@ -396,6 +397,8 @@ class ImageController(object):
             res.append('.chi')
         if self.widget.pattern_header_dat_cb.isChecked():
             res.append('.dat')
+        if self.widget.pattern_header_pyfai_cb.isChecked():
+            res.append('.pyfai')
         return res
 
     def show_file_info(self):

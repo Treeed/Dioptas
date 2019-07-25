@@ -111,6 +111,7 @@ class PatternController(object):
         self.widget.pattern_header_chi_cb.clicked.connect(self.update_pattern_file_endings)
         self.widget.pattern_header_dat_cb.clicked.connect(self.update_pattern_file_endings)
         self.widget.pattern_header_fxye_cb.clicked.connect(self.update_pattern_file_endings)
+        self.widget.pattern_header_pyfai_cb.clicked.connect(self.update_pattern_file_endings)
 
     def update_pattern_file_endings(self):
         res = []
@@ -122,6 +123,8 @@ class PatternController(object):
             res.append('.dat')
         if self.widget.pattern_header_fxye_cb.isChecked():
             res.append('.fxye')
+        if self.widget.pattern_header_pyfai_cb.isChecked():
+            res.append('.pyfai')
         self.model.current_configuration.integrated_patterns_file_formats = res
 
     def plot_pattern(self):
@@ -166,7 +169,7 @@ class PatternController(object):
             self.widget, "Save Pattern Data.",
             os.path.join(self.model.working_directories['pattern'],
                          img_filename + '.xy'),
-            ('Data (*.xy);;Data (*.chi);;Data (*.dat);;GSAS (*.fxye);;png (*.png);;svg (*.svg)'))
+            ('Data (*.xy);;Data (*.chi);;Data (*.dat);;GSAS (*.fxye);;png (*.png);;svg (*.svg);;Data (*.pyfai)'))
 
         if filename is not '':
             if filename.endswith('.png'):

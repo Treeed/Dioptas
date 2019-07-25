@@ -197,7 +197,7 @@ class BackgroundController(object):
         filename = save_file_dialog(
             self.widget, "Save Fit Background as Pattern Data.",
             os.path.join(self.model.working_directories['pattern'],
-                         img_filename + '.xy'), ('Data (*.xy);;Data (*.chi);;Data (*.dat);;GSAS (*.fxye)'))
+                         img_filename + '.xy'), ('Data (*.xy);;Data (*.chi);;Data (*.dat);;GSAS (*.fxye);;Data (*.pyfai)'))
 
         if filename is not '':
             self.model.current_configuration.save_background_pattern(filename)
