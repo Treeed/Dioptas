@@ -10,44 +10,24 @@ class LambdaImage:
         :param filename: path to the image file to be loaded
         """
         detector_identifiers = [["/entry/instrument/detector/description", "Lambda"], ["/entry/instrument/detector/description", b"Lambda"]]
-        filenumber_list = [1, 2, 3]
-        regex_in = r"(.+_m)\d(.nxs)"
-        regex_out = r"\g<1>{}\g<2>"
-        data_path = "entry/instrument/detector/data"
-        module_positions_path = "/entry/instrument/detector/translation/distance"
+        data_path = "INSTRUMENT/HED_EXP_VAREX/CAM/1:daqOutput/data/image/pixels"
 
         try:
             nx_file = h5py.File(filename, "r")
         except OSError:
             raise IOError("not a loadable hdf5 file")
 
-        for identifier in detector_identifiers:
-            try:
-                if nx_file[identifier[0]][0] == identifier[1]:
-                    break
-            except KeyError:
-                pass
-        else:
-            raise IOError("not a lambda image")
+        img_data=np.array(nx_file[data_path])
+        nozeros =img_data[np.any(img_data, axis=(1, 2))]
+        sortdata = nozeros-np.mean(nozeros, axis=0)
+        intensity = np.partition(np.reshape(sortdata, (nozeros.shape[0], -1)), -100, axis=1)[:,-100]
 
-
-        # the image data is spread over multiple files, so we compile a list of them here
-        lambda_files = []
-
-        for moduleIndex in filenumber_list:
-            try:
-                lambda_files.append(h5py.File(re.sub(regex_in, regex_out.format(moduleIndex), filename), "r"))
-            except OSError:
-                pass
-
-        self.full_img_data = [imageFile[data_path] for imageFile in lambda_files]
-
-        self._module_pos = np.array([np.ravel(nxim[module_positions_path]).astype(int) for nxim in lambda_files])
-
-        # remove any empty columns/rows to the left or top of the image data or shift any negative rows/columns into the positive
-        np.subtract(self._module_pos, self._module_pos[:, 0].min(), self._module_pos, where=[1, 0, 0])
-        np.subtract(self._module_pos, self._module_pos[0][1], self._module_pos, where=[0, 1, 0])
-        self.series_len = lambda_files[0][data_path].shape[0]
+        partmean = np.mean(nozeros[intensity < 36], axis=0)
+        datapictureidx = np.argwhere(intensity > 36)
+        print(datapictureidx+2)
+        self.series_len = nozeros.shape[0]+1
+        self.full_img_data = nozeros-partmean
+        self.full_img_data = np.concatenate([np.sum(self.full_img_data[datapictureidx],axis=0), self.full_img_data])
 
     def get_image(self, image_nr):
         """
@@ -55,12 +35,6 @@ class LambdaImage:
         :param image_nr: position from which to take the image from the image set
         :return: image_data
         """
-        image_data = np.array([module[image_nr] for module in self.full_img_data])
-        image = np.zeros([image_data[0].shape[0] + self._module_pos[-1, 1],
-                          image_data[0].shape[1] + self._module_pos[:, 0].max()])
-
-        for module_pos, module_image_data in zip(self._module_pos, image_data):
-            image[module_pos[1]:module_pos[1]+module_image_data.shape[0],
-                  module_pos[0]:module_pos[0]+module_image_data.shape[1]] = module_image_data
+        image = self.full_img_data[image_nr]
 
         return image[::-1]

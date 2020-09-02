@@ -188,7 +188,7 @@ class MainController(object):
         calibration_name = self.model.calibration_model.calibration_name
         str = 'Dioptas ' + __version__
         if img_filename is '' and pattern_filename is '':
-            self.widget.setWindowTitle(str + u' - © 2019 C. Prescher')
+            self.widget.setWindowTitle(str + u' - © 2019 C. Prescher'+" jcpdsfix")
             self.widget.integration_widget.img_frame.setWindowTitle(str + u' - © 2019 C. Prescher')
             return
 

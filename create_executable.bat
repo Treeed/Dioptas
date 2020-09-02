@@ -5,7 +5,7 @@ pyinstaller Dioptas.spec
 
 cd dist/dioptas*
 
-rm mkl_avx512.dll, ^
+del mkl_avx512.dll, ^
     mkl_avx2.dll, ^
     mkl_avx.dll, ^
     mkl_mc3.dll, ^

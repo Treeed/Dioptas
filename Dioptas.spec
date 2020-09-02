@@ -129,7 +129,7 @@ exclude_datas = [
    "idlelib",
    "requests",
    "qt4_plugins",
-   "qt5_plugins"
+#   "qt5_plugins"
 ]
 
 for exclude_data in exclude_datas:
