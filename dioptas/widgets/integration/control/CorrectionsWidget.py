@@ -36,6 +36,9 @@ class CorrectionsWidget(QtWidgets.QWidget):
         self.create_oiadac_widgets()
         self.create_oiadac_layout()
 
+        self.create_flatfield_widgets()
+        self.create_flatfield_layout()
+
         self.create_transfer_widgets()
         self.create_transfer_layout()
 
@@ -50,9 +53,14 @@ class CorrectionsWidget(QtWidgets.QWidget):
         self._layout.addLayout(vertical_layout_2, 2)
 
         vertical_layout_3 = QtWidgets.QHBoxLayout()
-        vertical_layout_3.addWidget(self.transfer_gb)
+        vertical_layout_3.addWidget(self.flat_field_gb)
         vertical_layout_3.addStretch(1)
         self._layout.addLayout(vertical_layout_3, 2)
+
+        vertical_layout_4 = QtWidgets.QHBoxLayout()
+        vertical_layout_4.addWidget(self.transfer_gb)
+        vertical_layout_4.addStretch(1)
+        self._layout.addLayout(vertical_layout_4, 2)
 
         self._layout.addStretch(1)
 
@@ -61,6 +69,7 @@ class CorrectionsWidget(QtWidgets.QWidget):
 
         self.hide_cbn_widgets()
         self.hide_oiadac_widgets()
+        self.hide_flatfield_widgets()
         self.hide_transfer_widgets()
 
     def create_cbn_correction_widgets(self):
@@ -161,6 +170,20 @@ class CorrectionsWidget(QtWidgets.QWidget):
 
         self.oiadac_gb.setLayout(self._oiadac_layout)
 
+    def create_flatfield_widgets(self):
+        self.flat_field_gb = QtWidgets.QGroupBox('Flat Field Correction')
+        self.flat_use_internal = QtWidgets.QCheckBox('use integrated flatfield')
+        self.flat_filename_box = QtWidgets.QLineEdit('')
+        self.flat_load_file = FlatButton("Load Flatfield")
+
+    def create_flatfield_layout(self):
+        self._flat_field_layout = QtWidgets.QHBoxLayout()
+        self._flat_field_layout.addWidget(self.flat_use_internal)
+        self._flat_field_layout.addWidget(self.flat_filename_box)
+        self._flat_field_layout.addWidget(self.flat_load_file)
+
+        self.flat_field_gb.setLayout(self._flat_field_layout)
+
     def create_transfer_widgets(self):
         self.transfer_gb = QtWidgets.QGroupBox('Transfer Correction')
         self.transfer_load_original_btn = FlatButton('Load Original')
@@ -184,6 +207,8 @@ class CorrectionsWidget(QtWidgets.QWidget):
         self.cbn_seat_gb.setChecked(False)
         self.oiadac_gb.setCheckable(True)
         self.oiadac_gb.setChecked(False)
+        self.flat_field_gb.setCheckable(True)
+        self.flat_field_gb.setChecked(False)
         self.transfer_gb.setCheckable(True)
         self.transfer_gb.setChecked(False)
 
@@ -213,6 +238,7 @@ class CorrectionsWidget(QtWidgets.QWidget):
         self.cbn_seat_gb.setMinimumWidth(380)
         self.oiadac_gb.setMinimumWidth(380)
         self.transfer_gb.setMinimumWidth(380)
+        self.flat_field_gb.setMinimumWidth(380)
         self.transfer_plot_btn.setMinimumWidth(35)
         self.transfer_plot_btn.setMaximumWidth(35)
 
@@ -235,6 +261,18 @@ class CorrectionsWidget(QtWidgets.QWidget):
         self.oiadac_plot_btn.show()
         self.oiadac_param_tw.show()
         self.oiadac_gb.setMaximumHeight(999999)
+
+    def hide_flatfield_widgets(self):
+        self.flat_use_internal.hide()
+        self.flat_filename_box.hide()
+        self.flat_load_file.hide()
+        self.flat_field_gb.setMaximumHeight(20)
+
+    def show_flatfield_widgets(self):
+        self.flat_use_internal.show()
+        self.flat_filename_box.show()
+        self.flat_load_file.show()
+        self.flat_field_gb.setMaximumHeight(999999)
 
     def hide_transfer_widgets(self):
         self.transfer_plot_btn.hide()
@@ -264,8 +302,17 @@ class CorrectionsWidget(QtWidgets.QWidget):
         else:
             self.hide_oiadac_widgets()
 
+    def toggle_flatfield_widget_visibility(self, flag):
+        if flag:
+            self.show_flatfield_widgets()
+        else:
+            self.hide_flatfield_widgets()
+
     def toggle_transfer_widget_visibility(self, flag):
         if flag:
             self.show_transfer_widgets()
         else:
             self.hide_transfer_widgets()
+
+        self.flat_field_gb.setCheckable(True)
+        self.flat_field_gb.setChecked(False)

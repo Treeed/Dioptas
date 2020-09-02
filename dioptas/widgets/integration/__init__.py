@@ -97,6 +97,8 @@ class IntegrationWidget(QtWidgets.QWidget):
         self.autoprocess_cb = img_file_widget.file_cb
         self.prev_img_btn = img_file_widget.previous_btn
         self.next_img_btn = img_file_widget.next_btn
+        self.series_pos = img_file_widget.series_pos
+        self.series_validator = img_file_widget.series_validator
         self.image_browse_step_txt = img_file_widget.step_txt
         self.img_browse_by_name_rb = img_file_widget.browse_by_name_rb
         self.img_browse_by_time_rb = img_file_widget.browse_by_time_rb
@@ -166,6 +168,11 @@ class IntegrationWidget(QtWidgets.QWidget):
         self.transfer_plot_btn = corrections_control_widget.transfer_plot_btn
         self.transfer_original_filename_lbl = corrections_control_widget.transfer_original_filename_lbl
         self.transfer_response_filename_lbl = corrections_control_widget.transfer_response_filename_lbl
+
+        self.flat_groupbox = corrections_control_widget.flat_field_gb
+        self.flat_use_internal = corrections_control_widget.flat_use_internal
+        self.flat_load_file = corrections_control_widget.flat_load_file
+        self.flat_filename_box = corrections_control_widget.flat_filename_box
 
         background_control_widget = self.integration_control_widget.background_control_widget
         self.bkg_image_load_btn = background_control_widget.load_image_btn

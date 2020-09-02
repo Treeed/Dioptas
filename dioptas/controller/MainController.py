@@ -186,7 +186,7 @@ class MainController(object):
         img_filename = os.path.basename(self.model.img_model.filename)
         pattern_filename = os.path.basename(self.model.pattern.filename)
         calibration_name = self.model.calibration_model.calibration_name
-        str = 'Dioptas ' + __version__
+        str = 'Dioptas ' + __version__ + " modJM0.12 "
         if img_filename is '' and pattern_filename is '':
             self.widget.setWindowTitle(str + u' - © 2019 C. Prescher')
             self.widget.integration_widget.img_frame.setWindowTitle(str + u' - © 2019 C. Prescher')

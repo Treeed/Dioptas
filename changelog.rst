@@ -1,4 +1,4 @@
-0.5.0 (stable 03/01/2019)
+0.5.0 (under development)
 -------------------------
 
 New features:

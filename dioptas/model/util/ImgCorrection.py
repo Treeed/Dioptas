@@ -29,9 +29,9 @@ class ImgCorrectionManager(object):
         self._ind = 0
         self.shape = img_shape
 
-    def add(self, img_correction, name=None):
+    def add(self, img_correction, name, img_shape):
         if self.shape is None:
-            self.shape = img_correction.shape()
+            self.shape = img_shape
 
         if self.shape == img_correction.shape():
             if name is None:
@@ -44,6 +44,10 @@ class ImgCorrectionManager(object):
     def has_items(self):
         return len(self._corrections) != 0
 
+    def set_params(self, name, params):
+        self._corrections[name].set_params(params)
+        self._corrections[name].update()
+
     def delete(self, name=None):
         if name is None:
             if self._ind == 0:
@@ -54,18 +58,37 @@ class ImgCorrectionManager(object):
         if len(self._corrections) == 0:
             self.clear()
 
+    def delete_error(self, name=None):
+        if name is None:
+            if self._ind == 0:
+                return
+            self._ind -= 1
+            name = self._ind
+        self._corrections[name].signal_delete_error()
+        del self._corrections[name]
+        if len(self._corrections) == 0:
+            self.clear()
+
     def clear(self):
         self._corrections = {}
         self.shape = None
         self._ind = 0
+
+    def set_shape(self, shape):
+        if self.shape != shape:
+            self.clear()
+        self.shape = shape
 
     def get_data(self):
         if len(self._corrections) == 0:
             return None
 
         res = np.ones(self.shape)
-        for key, correction in self._corrections.items():
-            res *= correction.get_data()
+        for key in self._corrections.keys():
+            if self._corrections[key].shape() == self.shape:
+                res *= self._corrections[key].get_data()
+            else:
+                self.delete_error(key)
         return res
 
     def get_correction(self, name):
@@ -292,6 +315,39 @@ class ObliqueAngleDetectorAbsorptionCorrection(ImgCorrectionInterface):
                                 (1 - np.exp(-attenuation_constant * self.detector_thickness))
 
         self._data = absorption_correction
+
+
+class FlatFieldCorrection(ImgCorrectionInterface):
+    def __init__(self, use_int, signal_delete_error, flat_data_int = None, flat_data_ext = None):
+        self.use_int = use_int
+        self.flat_data_int = flat_data_int
+        self.flat_data_ext = flat_data_ext
+        self.signal_delete_error = signal_delete_error
+        self.update()
+
+    def get_params(self):
+        return {'flat_data_int': self.flat_data_int,
+                'flat_data_ext': self. flat_data_ext,
+                'signal_delete_error': self.signal_delete_error
+                }
+
+    def set_params(self, params):
+        self.flat_data_int = params['flat_data_int']
+        self.flat_data_ext = params['flat_data_ext']
+        self.signal_delete_error = params['signal_delete_error']
+
+    def get_data(self):
+        return self._data
+
+    def shape(self):
+        return self._data.shape
+
+    def update(self):
+        if self.use_int:
+            self._data = self.flat_data_int/self.flat_data_int.mean()
+        else:
+            self._data = self.flat_data_ext/self.flat_data_ext.mean()
+
 
 
 class TransferFunctionCorrection(ImgCorrectionInterface):

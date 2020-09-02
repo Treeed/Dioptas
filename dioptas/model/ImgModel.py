@@ -26,6 +26,9 @@ import numpy as np
 from PIL import Image
 from qtpy import QtCore
 
+import h5py
+import re
+
 import fabio
 
 from .util.spe import SpeFile
@@ -96,6 +99,9 @@ class ImgModel(QtCore.QObject):
                         '.mccd', '.mar3450', '.pnm', 'spe']
         )
         self._directory_watcher.file_added.connect(self.load)
+        self.series_max = 0
+        self.hdf_imgs = []
+        self.series_pos = 0
 
     def load(self, filename):
         """
@@ -109,17 +115,23 @@ class ImgModel(QtCore.QObject):
         self.filename = filename
         try:
             im = Image.open(filename)
-            self._img_data = np.array(im)[::-1]
-            self.file_info = self._get_file_info(im)
-            self.motors_info = self._get_motors_info(im)
+            if im.format == "HDF5":  # Pillow can't read nexus files properly so do it with nexusformat instead
+                self.loadHDF5(filename)
+            else:
+                self._img_data = np.array(im)[::-1]
+                self.series_max = 0
+                self.file_info = self._get_file_info(im)
+                self.motors_info = self._get_motors_info(im)
             im.close()
         except IOError:
             if os.path.splitext(filename)[1].lower() == '.spe':
                 spe = SpeFile(filename)
                 self._img_data = spe.img
+                self.series_max = 0
             else:
                 self._img_data_fabio = fabio.open(filename)
                 self._img_data = self._img_data_fabio.data[::-1]
+                self.series_max = 0
         self.file_name_iterator.update_filename(filename)
         self._directory_watcher.path = os.path.dirname(str(filename))
 
@@ -127,6 +139,73 @@ class ImgModel(QtCore.QObject):
         self._calculate_img_data()
 
         self.img_changed.emit()
+
+    def loadHDF5(self, filename):
+        nx_file = h5py.File(filename, "r")
+        detector_identifiers = [["/entry/instrument/detector/description", "Lambda"],["/entry/instrument/detector/description", b"Lambda"]]
+        multifile = True
+        filenumber_list = [1, 2, 3]
+        regex_in = r"(.+_m)\d(.nxs)"
+        regex_out = r"\g<1>{}\g<2>"
+        data_path = "entry/instrument/detector/data"
+        if nx_file[detector_identifiers[0][0]][0] == detector_identifiers[0][1]:
+            if multifile:
+                # the image data is spread over multiple files, so we compile a list of them here
+                self.hdf_imgs = [
+                    h5py.File(re.sub(regex_in, regex_out.format(moduleIndex), filename), "r")  # TODO: catch exception if not all modules are there
+                    for moduleIndex in filenumber_list]
+                self.nximdata = [
+                    imageFile[data_path]
+                    for imageFile in self.hdf_imgs
+                ]
+                module_positions_key = "/entry/instrument/detector/translation/distance"
+                self.module_positions = np.array([nxim[module_positions_key][0].astype(int) for nxim in self.hdf_imgs])
+                np.subtract(self.module_positions, self.module_positions[:, 0].min(), self.module_positions, where=[1, 0, 0])
+                np.subtract(self.module_positions, self.module_positions[0][1], self.module_positions, where=[0, 1, 0])
+                self.loadImageFromNxim(0)
+                self.series_max = self.hdf_imgs[0][data_path].shape[0] - 1
+                self.series_pos = 0
+            else:
+                pass  # TODO: single image
+
+        if nx_file[detector_identifiers[1][0]][0] == detector_identifiers[1][1]:
+            if multifile:
+                # the image data is spread over multiple files, so we compile a list of them here
+                self.hdf_imgs = [
+                    h5py.File(re.sub(regex_in, regex_out.format(moduleIndex), filename), "r")  # TODO: catch exception if not all modules are there
+                    for moduleIndex in filenumber_list]
+                self.nximdata = [
+                    imageFile[data_path]
+                    for imageFile in self.hdf_imgs
+                ]
+                module_positions_key = "/entry/instrument/detector/translation/distance"
+                self.module_positions = np.array([np.array(nxim[module_positions_key]).astype(int) for nxim in self.hdf_imgs])
+                np.subtract(self.module_positions, self.module_positions[:, 0].min(), self.module_positions, where=[1, 0, 0])
+                np.subtract(self.module_positions, self.module_positions[0][1], self.module_positions, where=[0, 1, 0])
+                self.loadImageFromNxim(0)
+                self.series_max = self.hdf_imgs[0][data_path].shape[0] - 1
+                self.series_pos = 0
+            else:
+                pass  # TODO: single image
+
+    def loadImageFromNxim(self, image_nr):
+        # remove any empty columns/rows to the left or top of the image data or shift any negative rows/columns into the positive
+        nximages = np.empty((0, self.nximdata[2].shape[2] + self.module_positions[:, 0].max()))
+        # the empty array needs to have the width of the detector data for concatenate()
+        for modulenr, moduleImageData in enumerate(self.nximdata):
+            # generate empty columns to the left and right of the data to match with the others
+            imagedata = np.concatenate([np.zeros((moduleImageData.shape[1], self.module_positions[modulenr, 0])),
+                moduleImageData[image_nr],
+                np.zeros((moduleImageData.shape[1], self.module_positions[:,0].max()-self.module_positions[modulenr, 0]))], axis=1)
+            nximages = np.concatenate(
+                [nximages,
+                 np.zeros((
+                     # generate as many empty rows as needed to get to the position where the module data wants to be
+                     int(self.module_positions[modulenr, 1]) -
+                     nximages.shape[0],
+                     moduleImageData.shape[2] + self.module_positions[:,0].max())),
+                 imagedata])  # append the actual new image data
+        self._img_data = nximages[::-1]
 
     def save(self, filename):
         """
@@ -164,6 +243,10 @@ class ImgModel(QtCore.QObject):
 
         self._calculate_img_data()
         self.img_changed.emit()
+
+    def load_flat_image(self, filename):
+        return fabio.open(filename).data[::-1]
+        # TODO: make single image loading function for all formats
 
     def add(self, filename):
         """
@@ -258,15 +341,27 @@ class ImgModel(QtCore.QObject):
         self._calculate_img_data()
         self.img_changed.emit()
 
+    def load_series_img(self, nr):
+        self.loadImageFromNxim(nr)
+
+        self._perform_img_transformations()
+        self._calculate_img_data()
+
+        self.img_changed.emit()
+
     def load_next_file(self, step=1, pos=None):
         """
         Loads the next file based on the current iteration mode and the step you specify.
         :param pos:
         :param step: Defining how much you want to increment the file number. (default=1)
         """
-        next_file_name = self.file_name_iterator.get_next_filename(mode=self.file_iteration_mode, step=step, pos=pos)
-        if next_file_name is not None:
-            self.load(next_file_name)
+        if self.series_max:
+            self.series_pos = min(self.series_pos + step, self.series_max)
+            self.load_series_img(self.series_pos)
+        else:
+            next_file_name = self.file_name_iterator.get_next_filename(mode=self.file_iteration_mode, step=step, pos=pos)
+            if next_file_name is not None:
+                self.load(next_file_name)
 
     def load_previous_file(self, step=1, pos=None):
         """
@@ -274,10 +369,19 @@ class ImgModel(QtCore.QObject):
         :param pos:
         :param step: Defining how much you want to decrement the file number. (default=1)
         """
-        previous_file_name = self.file_name_iterator.get_previous_filename(mode=self.file_iteration_mode,
-                                                                           step=step, pos=pos)
-        if previous_file_name is not None:
-            self.load(previous_file_name)
+        if self.series_max:
+            self.series_pos = max(self.series_pos - step, 0)
+            self.loadImageFromNxim(self.series_pos)
+
+            self._perform_img_transformations()
+            self._calculate_img_data()
+
+            self.img_changed.emit()
+        else:
+            previous_file_name = self.file_name_iterator.get_previous_filename(mode=self.file_iteration_mode,
+                                                                               step=step, pos=pos)
+            if previous_file_name is not None:
+                self.load(previous_file_name)
 
     def load_next_folder(self, mec_mode=False):
         """
@@ -580,7 +684,12 @@ class ImgModel(QtCore.QObject):
         :param name: correction can be given a name, to selectively delete or obtain later.
         :type name: basestring
         """
-        self._img_corrections.add(correction, name)
+        if self._img_corrections.add(correction, name, self._img_data.shape):
+            self._calculate_img_data()
+            self.img_changed.emit()
+
+    def change_image_correction(self, name, params):
+        self._img_corrections.set_params(name, params)
         self._calculate_img_data()
         self.img_changed.emit()
 
@@ -686,4 +795,8 @@ class ImgModel(QtCore.QObject):
 
 
 class BackgroundDimensionWrongException(Exception):
+    pass
+
+
+class NoHandlerForHDF5(Exception):
     pass

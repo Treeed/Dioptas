@@ -139,6 +139,9 @@ class BrowseFileWidget(QtWidgets.QGroupBox):
         self.previous_btn = FlatButton('<')
         self.step_txt = QtWidgets.QLineEdit('1')
         self.step_txt.setValidator(QtGui.QIntValidator())
+        self.series_pos = QtWidgets.QLineEdit('0')
+        self.series_validator = QtGui.QIntValidator(0, 0)
+        self.series_pos.setValidator(self.series_validator)
         self.browse_by_name_rb = QtWidgets.QRadioButton('By Name')
         self.browse_by_name_rb.setChecked(True)
         self.browse_by_time_rb = QtWidgets.QRadioButton('By Time')
@@ -154,6 +157,8 @@ class BrowseFileWidget(QtWidgets.QGroupBox):
         self._step_layout = QtWidgets.QHBoxLayout()
         self._step_layout.addWidget(LabelAlignRight('Step:'))
         self._step_layout.addWidget(self.step_txt)
+        self._step_layout.addWidget(LabelAlignRight('Series pos:'))
+        self._step_layout.addWidget(self.series_pos)
         self._layout.addLayout(self._step_layout, 1, 1, 1, 2)
 
         self._layout.addWidget(self.browse_by_name_rb, 0, 3)

@@ -23,7 +23,7 @@ import time
 import os
 from qtpy import QtWidgets
 
-from ...model.util.ImgCorrection import CbnCorrection, ObliqueAngleDetectorAbsorptionCorrection
+from ...model.util.ImgCorrection import CbnCorrection, ObliqueAngleDetectorAbsorptionCorrection, FlatFieldCorrection
 
 # imports for type hinting in PyCharm -- DO NOT DELETE
 from ...widgets.integration import IntegrationWidget
@@ -69,6 +69,12 @@ class CorrectionController(object):
         self.widget.transfer_plot_btn.clicked.connect(self.transfer_plot_btn_clicked)
         self.widget.transfer_gb.toggled.connect(self.transfer_gb_toggled)
 
+        #flat field correction
+        self.widget.flat_groupbox.clicked.connect(self.flat_correction_changed)
+        #self.widget.flat_use_internal.clicked.connect()
+        self.widget.flat_filename_box.editingFinished.connect(self.flat_correction_changed)
+        self.widget.flat_load_file.clicked.connect(self.open_flat_image)
+
         # general
         self.model.img_model.corrections_removed.connect(self.corrections_removed)
 
@@ -77,6 +83,8 @@ class CorrectionController(object):
             self.widget.integration_control_widget.corrections_control_widget.toggle_oiadac_widget_visibility)
         self.widget.cbn_groupbox.toggled.connect(
             self.widget.integration_control_widget.corrections_control_widget.toggle_cbn_widget_visibility)
+        self.widget.flat_groupbox.toggled.connect(
+            self.widget.integration_control_widget.corrections_control_widget.toggle_flatfield_widget_visibility)
         self.widget.transfer_gb.toggled.connect(
             self.widget.integration_control_widget.corrections_control_widget.toggle_transfer_widget_visibility)
 
@@ -136,6 +144,7 @@ class CorrectionController(object):
     def corrections_removed(self):
         self.widget.cbn_groupbox.setChecked(False)
         self.widget.oiadac_groupbox.setChecked(False)
+        self.widget.flat_groupbox.setChecked(False)
         self.widget.transfer_gb.setChecked(False)
         self.widget.transfer_original_filename_lbl.setText('None')
         self.widget.transfer_response_filename_lbl.setText('None')
@@ -270,6 +279,49 @@ class CorrectionController(object):
             self.widget.oiadac_plot_btn.setText('Plot')
             self.reset_img_widget()
 
+    def open_flat_image(self):
+        filenames = QtWidgets.QFileDialog.getOpenFileName(None)
+        if filenames:
+            self.widget.flat_filename_box.setText(filenames[0])
+            # TODO: average if mutliple
+            flat_image = self.model.img_model.load_flat_image(filenames[0])
+            self.set_flat_image(flat_image)
+
+    def flat_correction_changed(self):
+        if self.widget.flat_groupbox.isChecked():
+            flat_image_path = str(self.widget.flat_filename_box.text())
+            if flat_image_path:
+                flat_image = self.model.img_model.load_flat_image(flat_image_path)
+                self.set_flat_image(flat_image)
+        else:
+            try:
+                self.model.img_model.delete_img_correction("flat_field")
+            except KeyError:
+                pass
+
+    def set_flat_image(self, flat_image):
+        try:
+            self.model.img_model.change_image_correction("flat_field", {"flat_data": flat_image, "signal_delete": self.deactivate_flat_image})
+        except KeyError:
+            new_flatfield_correction = FlatFieldCorrection(flat_image, self.deactivate_flat_image)
+            new_flatfield_correction.update()
+            if not self.model.img_model.add_img_correction(new_flatfield_correction, "flat_field"):
+                QtWidgets.QMessageBox.critical(self.widget,
+                                               'ERROR',
+                                               "The flatfield and image shape don't match.\n" + \
+                                               'Load a flat field that matches the dimensions of your image')
+                self.widget.flat_filename_box.clear()
+            #TODO: make this a function for all corrections
+
+    #def toggle
+
+    def deactivate_flat_image(self):
+        self.widget.flat_groupbox.setChecked(False)
+        QtWidgets.QMessageBox.critical(self.widget,
+                                       'ERROR',
+                                       "The flatfield and image shape don't match.\n" + \
+                                       'The flatfield correction was deactivated')
+
     def reset_img_widget(self):
         if self.widget.img_mode == 'Cake':
             self.model.cake_changed.emit()
@@ -306,6 +358,14 @@ class CorrectionController(object):
             self.widget.oiadac_groupbox.blockSignals(False)
         else:
             self.widget.oiadac_groupbox.setChecked(False)
+
+        if self.model.img_model.get_img_correction('flat_field') is not None:
+            self.update_transfer_widgets()
+            # self.widget.transfer_gb.blockSignals(True)
+            self.widget.flat_groupbox.setChecked(True)
+            # self.widget.transfer_gb.blockSignals(False)
+        else:
+            self.widget.flat_groupbox.setChecked(False)
 
         if self.model.img_model.get_img_correction('transfer') is not None:
             self.update_transfer_widgets()

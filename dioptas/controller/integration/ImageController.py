@@ -85,7 +85,7 @@ class ImageController(object):
         if auto_scale is None:
             auto_scale = self.widget.img_autoscale_btn.isChecked()
 
-        if self.widget.integration_image_widget.show_background_subtracted_img_btn.isChecked():
+        if True: #self.widget.integration_image_widget.show_background_subtracted_img_btn.isChecked(): #TODO: fix
             self.widget.img_widget.plot_image(self.model.img_model.img_data, False)
         else:
             self.widget.img_widget.plot_image(self.model.img_model.raw_img_data, False)
@@ -145,6 +145,7 @@ class ImageController(object):
         self.connect_click_function(self.widget.prev_img_btn, self.load_previous_img)
         self.connect_click_function(self.widget.load_img_btn, self.load_file)
         self.widget.img_filename_txt.editingFinished.connect(self.filename_txt_changed)
+        self.widget.series_pos.editingFinished.connect(self.series_img_nr_changed)
         self.widget.img_directory_txt.editingFinished.connect(self.directory_txt_changed)
         self.connect_click_function(self.widget.img_directory_btn, self.img_directory_btn_click)
 
@@ -408,6 +409,10 @@ class ImageController(object):
         step = int(str(self.widget.image_browse_step_txt.text()))
         self.model.img_model.load_previous_file(step=step)
 
+    def series_img_nr_changed(self):
+        self.model.img_model.series_pos = int(str(self.widget.series_pos.text()))
+        self.model.img_model.load_series_img(self.model.img_model.series_pos)
+
     def filename_txt_changed(self):
         current_filename = os.path.basename(self.model.img_model.filename)
         current_directory = str(self.widget.img_directory_txt.text())
@@ -443,6 +448,8 @@ class ImageController(object):
             self.widget.img_directory_txt.setText(directory)
 
     def update_img(self, reset_img_levels=None):
+        self.widget.series_validator.setTop(self.model.img_model.series_max)
+        self.widget.series_pos.setText(str(self.model.img_model.series_pos))
         self.widget.img_filename_txt.setText(os.path.basename(self.model.img_model.filename))
         self.widget.img_directory_txt.setText(os.path.dirname(self.model.img_model.filename))
         self.widget.file_info_widget.text_lbl.setText(self.model.img_model.file_info)
